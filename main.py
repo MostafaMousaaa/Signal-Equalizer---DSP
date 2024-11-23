@@ -88,7 +88,7 @@ class MainApp(QtWidgets.QMainWindow, Ui_MainWindow):
             slider.setMaximum(10)
             slider.setValue(10)
             slider.setTickInterval(1)
-            slider.valueChanged.connect(self.updateModifiedSignal)
+            slider.valueChanged.connect(self.plotModifiedSignal)
 
     def plot_frequency_domain(self):
         self.PlotWidget_fourier.plot_frequency_domain(self.modified_signal, self.sampling_rate)
@@ -104,8 +104,10 @@ class MainApp(QtWidgets.QMainWindow, Ui_MainWindow):
     def uploadSignal(self):
         """Upload and plot the signal."""
         file_browser = FileBrowser()
-        self.signal, self.sampling_rate = file_browser.browse_file(mode= 'music')
-        self.plotSignal()
+        self.signal, self.sampling_rate = file_browser.browse_file(mode= 'music')   # preparing original signal
+        self.freq_components, self.frequencies, self.magnitudes, self.phase_angles = self.computeFourierTransform()  # preparing modified signal properties by computing fft for only one time when browsing
+        self.plotSignal()    # plots original signal and calls plotting modified signal
+        
 
       
     def plotSignal(self):  
@@ -113,13 +115,14 @@ class MainApp(QtWidgets.QMainWindow, Ui_MainWindow):
         self.right_x_view  = self.left_x_view + 1  # adjusting the right x view
         self.duration = (1/self.sampling_rate) * len(self.signal)
         self.time_values = np.linspace(start = 0, stop = self.duration, num = len(self.signal))   # duration = Ts (time bet each 2 samples) * number of samples (len(self.signal))
-        self.output_time_values = self.time_values
+        #self.output_time_values = np.linspace(start = 0, stop = self.duration, num = len(self.modified_signal))
         self.isPaused = False
         self.PlotWidget_inputSignal.plotItem.setYRange(-1, 1)
         self.PlotWidget_inputSignal.plotItem.setXRange(self.left_x_view, self.right_x_view)    
         self.PlotWidget_inputSignal.plot(self.time_values, self.signal, pen = "r")
-        self.updateModifiedSignal()  # starts the modified signal corresponding to the sliders values. (made it this way because when rewinding, sliders' values aren't necessiraly = 10, so op signal isn't necessiraly same as ip signal)
-        self.timer.start(100)
+        self.plotModifiedSignal()  # for plotting modified signal
+        
+        self.timer.start(100)    # start updating the view
         self.plot_frequency_domain()
         
 
@@ -201,23 +204,22 @@ class MainApp(QtWidgets.QMainWindow, Ui_MainWindow):
             for i in range(len(self.shown_sliders_indices)):
                 self.sliderFrequencyMap[self.sliders[self.shown_sliders_indices[i]]] = currDict[self.labels[self.shown_sliders_indices[i]].text()]   # output map:  {slider_1 : [0, 170] , slider_2: [180, 240], ...}
 
-    def updateModifiedSignal(self):  # ma3aya kol slider b bdayet w nhayet el range of frequencies beta3o
-        self.modified_signal = self.computeFourierTransform()
-        self.output_time_values = np.linspace(start = 0, stop = self.duration, num = len(self.modified_signal))
-        self.PlotWidget_outputSignal.clear()
-        #self.PlotWidget_outputSignal.plotItem.setYRange(-1, 1)
-        self.PlotWidget_outputSignal.plotItem.setXRange(self.left_x_view, self.right_x_view)
-        self.PlotWidget_outputSignal.plot(self.output_time_values, self.modified_signal, pen = "b")
+    
         
         
     def computeFourierTransform(self):
         """Compute the Fourier transform of the signal."""
-        self.freq_components = np.fft.fft(self.signal)    # returns 1d np array containing freq all freq components (mag and phase, not the freq itself) of sinusoidals sharing in the signal.
-        self.frequencies = np.fft.fftfreq(len(self.signal), 1/self.sampling_rate)  # the frequencies themselves that are sharing in the signal, not their components. Parameters are num of pts in the signal and time spacing between each 2 pts.
-        self.magnitudes = np.abs(self.freq_components)     # obtaining magnitudes corresponding to each freq component.
-        self.phase_angles = np.angle(self.freq_components)   # obtaining phase angles corresponding to each freq component
+        freq_components = np.fft.fft(self.signal)    # returns 1d np array containing freq all freq components (mag and phase, not the freq itself) of sinusoidals sharing in the signal.
+        frequencies = np.fft.fftfreq(len(self.signal), 1/self.sampling_rate)  # the frequencies themselves that are sharing in the signal, not their components. Parameters are num of pts in the signal and time spacing between each 2 pts.
+        magnitudes = np.abs(freq_components)     # obtaining magnitudes corresponding to each freq component.
+        phase_angles = np.angle(freq_components)   # obtaining phase angles corresponding to each freq component
         
         #print(f"max frequency: {self.frequencies[len(self.frequencies) // 2]}") # for debugging
+        return freq_components, frequencies, magnitudes, phase_angles
+        
+        
+
+    def plotModifiedSignal(self):  # ma3aya kol slider b bdayet w nhayet el range of frequencies beta3o
         
         # looping on all sliders:
         for slider in self.sliders:  
@@ -227,16 +229,20 @@ class MainApp(QtWidgets.QMainWindow, Ui_MainWindow):
                 max_slider_freq = self.sliderFrequencyMap[slider][1]  # bound frequencies of the range that this slider holds
                 slider_freq_indices = np.where((self.frequencies >= min_slider_freq) & (self.frequencies <= max_slider_freq))[0]  # indices of frequencies this range in the "frequencies" array
                 #print(f" range indices: {slider_freq_indices}")  # for debugging
-                new_slider_magnitudes = self.magnitudes[slider_freq_indices] * (slider.value()/10) # new magnitudes in this range corresponding to the slider's value     
+                new_slider_magnitudes = self.magnitudes[slider_freq_indices] * (slider.value()/10.0) # new magnitudes in this range corresponding to the slider's value     
                 self.freq_components[slider_freq_indices] = new_slider_magnitudes * np.exp(1j * self.phase_angles[slider_freq_indices]) # updating frequency components array in this range
         
         #print(f"length of frequencies array: {len(self.frequencies)}")  # for debugging
-        print(f"frequencies corrsponding to last slider: {self.frequencies[slider_freq_indices]}")
-        print(f"magnitudes corresponding to last slider: {new_slider_magnitudes}")
+        # print(f"frequencies corrsponding to last slider: {self.frequencies[slider_freq_indices]}")
+        # print(f"magnitudes corresponding to last slider: {new_slider_magnitudes}")
         
-        modified_signal = self.invFourierTransform()
-        return modified_signal
-
+        self.modified_signal = self.invFourierTransform()   # constructing modified signal after changing in frequency components
+        self.PlotWidget_outputSignal.clear()
+        self.output_time_values = np.linspace(start = 0, stop = self.duration, num = len(self.modified_signal))
+        #self.PlotWidget_outputSignal.plotItem.setYRange(-1, 1)
+        self.PlotWidget_outputSignal.plotItem.setXRange(self.left_x_view, self.right_x_view)
+        self.PlotWidget_outputSignal.plot(self.output_time_values, self.modified_signal, pen = "b")  # plotting modified signal
+        
 
 
 

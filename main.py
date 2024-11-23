@@ -170,8 +170,6 @@ class MainApp(QtWidgets.QMainWindow, Ui_MainWindow):
 
             
         else:
-            self.PlotWidget_outputSignal.clear()
-            self.PlotWidget_inputSignal.clear()
             self.PlotWidget_inputSpectrogram.hideSpectrogram()
             self.PlotWidget_outputSpectrogram.hideSpectrogram()
             self.PlotWidget_fourier.hideCanvas()
@@ -203,7 +201,8 @@ class MainApp(QtWidgets.QMainWindow, Ui_MainWindow):
             self.sliderFrequencyMap = {}  # contains each slider as a key, the starting and ending freqs (tuple) of its range of freqs as the value
             for i in range(len(self.shown_sliders_indices)):
                 self.sliderFrequencyMap[self.sliders[self.shown_sliders_indices[i]]] = currDict[self.labels[self.shown_sliders_indices[i]].text()]   # output map:  {slider_1 : [0, 170] , slider_2: [180, 240], ...}
-
+            self.PlotWidget_outputSignal.clear()
+            self.PlotWidget_inputSignal.clear()
     
         
         

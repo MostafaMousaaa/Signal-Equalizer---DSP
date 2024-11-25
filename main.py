@@ -5,7 +5,9 @@ from PyQt5 import QtWidgets
 from PyQt5.QtCore import QTimer
 from classes import FileBrowser
 from PyQt5 import QtWidgets
+from PyQt5.QtWidgets import QFileDialog
 from UITEAM15 import Ui_MainWindow  # Import the Ui_MainWindow class
+import soundfile as sf
 
 class MainApp(QtWidgets.QMainWindow, Ui_MainWindow):
     def __init__(self):
@@ -78,6 +80,7 @@ class MainApp(QtWidgets.QMainWindow, Ui_MainWindow):
         self.comboBox_modeSelection.currentIndexChanged.connect(self.changeMode)
         self.timer.timeout.connect(self.updateSignalView_timeDomain)
         self.pushButton_uploadButton.clicked.connect(self.uploadSignal)
+        self.pushButton_uploadButton.clicked.connect(self.load_audio)
         self.comboBox_frequencyScale.activated.connect(self.set_log_scale)
         self.speedSlider.valueChanged.connect(self.setSpeed)
    
@@ -99,6 +102,7 @@ class MainApp(QtWidgets.QMainWindow, Ui_MainWindow):
         else:
             self.PlotWidget_fourier.log_scale = True
         self.plot_frequency_domain()
+
 
 
     def uploadSignal(self):
@@ -124,6 +128,42 @@ class MainApp(QtWidgets.QMainWindow, Ui_MainWindow):
         
         self.timer.start(100)    # start updating the view
         self.plot_frequency_domain()
+        
+    # def uploadAndPlotSignal(self):
+    #     """Upload and plot the signal."""
+    #     file_browser = FileBrowser()
+    #     self.signal, self.sampling_rate = file_browser.browse_file(mode= 'music')
+    #     #self.plotSignal_timeDomain(self.sampling_rate, self.signal)
+    #     self.chunksize = 1000
+    #     self.curr_ptr = 0
+    #     self.left_x_view = 0 # used in adjusting the view of the signal while running in cine mode
+    #     self.time_values = np.linspace(0, 10, len(self.signal))
+    #     #self.plotSignal_timeDomain()
+    #     self.timer.start(100)
+    #     self.plot_frequency_domain()
+    def load_audio(self):
+        file_name, _ = QFileDialog.getOpenFileName(self, "Open Audio File", "", "Audio Files (*.wav *.flac *.ogg *.mp3);;All Files (*)")
+        if file_name:
+            try:
+                # Load audio file
+                self.signal, self.sampling_rate = sf.read(file_name)
+                print(self.signal.shape)
+                
+                # If stereo, take only one channel
+                if self.signal.ndim > 1:
+                    self.signal = self.signal[:, 0]
+                self.modified_signal = self.signal
+                self.chunksize = 1000
+                self.curr_ptr = 0
+                self.left_x_view = 0 # used in adjusting the view of the signal while running in cine mode
+                self.time_values = np.linspace(0, len(self.signal)/self.sampling_rate,len(self.signal))
+                #self.plotSignal_timeDomain()
+                self.timer.start(100)
+                self.plot_frequency_domain()
+                
+                print(f"Loaded {file_name} with sample rate {self.sampling_rate} Hz")
+            except Exception as e:
+                print(f"Failed to load audio: {e}")
         
 
     def updateSignalView_timeDomain(self):
@@ -293,9 +333,12 @@ class MainApp(QtWidgets.QMainWindow, Ui_MainWindow):
             self.PlotWidget_inputSpectrogram.hideSpectrogram()
             self.PlotWidget_outputSpectrogram.hideSpectrogram()
     
-    # def updateOutput(self):
-    #     for i in range(0, 10):
-    #         self.magnitudes[i] = self.sliders[i].value() / 10.0
+
+    
+    def updateOutput(self):
+        for i in range(0, 10):
+            self.magnitudes[i] = self.sliders[i].value() / 10.0
+
                 
     #     self.modified_signal = 0
     #     loopCounter = 0

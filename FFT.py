@@ -15,9 +15,15 @@ class FFTPlotCanvas(FigureCanvas):
         # Initialize zoom and pan variables
         self.x_min = None
         self.x_max = None
-        self.log_scale = False
+        self.log_scale =  False  # Linear scale by default
         self.pan_start_x = None  # For panning
         self.zoom_factor = 0.1  # 10% zoom
+        
+        # Enable mouse tracking and set up Matplotlib event handlers
+        self.mpl_connect("button_press_event", self.on_mouse_press)
+        self.mpl_connect("motion_notify_event", self.on_mouse_move)
+        self.mpl_connect("button_release_event", self.on_mouse_release)
+        self.mpl_connect("scroll_event", self.on_mouse_scroll)
     
     # Hide the canvas from within the FFTPlotCanvas class
     def hideCanvas(self):
@@ -27,11 +33,6 @@ class FFTPlotCanvas(FigureCanvas):
     def showCanvas(self):
         self.setVisible(True)  # Shows the canvas
 
-        # Enable mouse tracking and set up Matplotlib event handlers
-        self.mpl_connect("button_press_event", self.on_mouse_press)
-        self.mpl_connect("motion_notify_event", self.on_mouse_move)
-        self.mpl_connect("button_release_event", self.on_mouse_release)
-        self.mpl_connect("scroll_event", self.on_mouse_scroll)
 
     def plot_frequency_domain(self, signal, sample_rate):
         self.ax.clear()
@@ -39,25 +40,29 @@ class FFTPlotCanvas(FigureCanvas):
         N = len(signal)
         freq_components = np.fft.fft(signal)
         freq_magnitude = np.abs(freq_components[:N // 2])
+        freq_magnitude_db = 20 * np.log10(freq_magnitude + 1e-12)
         freq_bins = np.fft.fftfreq(N, d=1 / sample_rate)[:N // 2]
+        max_freq =  max(freq_bins)
 
         # Plot settings
         if self.log_scale:
             self.ax.set_xscale('log')
-            if max(freq_bins) > 5000:
-                self.ax.set_xlim(left=1, right=5000)  # Set minimum frequency to 20 Hz
+            self.ax.set_ylim(bottom=120, top=-20) 
+            if max_freq > 8000:
+                self.ax.set_xlim(left=125, right=8000)  # Set minimum frequency to 20 Hz
             else:
-                self.ax.set_xlim(left=1, right=max(freq_bins))
+                self.ax.set_xlim(left=125, right=max_freq)
+            self.ax.plot(freq_bins, freq_magnitude_db, 'r')
         else:
             self.ax.set_xscale('linear')
-            if max(freq_bins) > 5000:
-                self.ax.set_xlim(left=0, right=5000)  # Set maximum frequency to 5000 Hz
+            if max_freq > 20000:
+                self.ax.set_xlim(left=0, right=20000)  # Set maximum frequency to 5000 Hz
             else:
-                self.ax.set_xlim(left=0, right=max(freq_bins))
+                self.ax.set_xlim(left=0, right=max_freq)
+            self.ax.plot(freq_bins, freq_magnitude, 'r')
+
         
-        self.ax.plot(freq_bins, freq_magnitude, 'r')
-        self.ax.set_title("Frequency Domain Signal")
-        self.ax.set_xlabel("Frequency [Hz]")
+        self.ax.set_xlabel("Frequency")
         self.ax.set_ylabel("Magnitude")
         self.ax.grid(True)
 
@@ -75,22 +80,22 @@ class FFTPlotCanvas(FigureCanvas):
         if self.pan_start_x is not None and event.xdata is not None:
             # Calculate the delta to move the plot
             if self.log_scale:
-                delta_x = (np.log10(self.pan_start_x) - np.log10(event.xdata))
+                delta_x = (self.pan_start_x - event.xdata)*0.5
+
             else: 
                 delta_x = (self.pan_start_x - event.xdata)
             self.pan_start_x = event.xdata
 
             # Adjust the x-axis limits for panning
-            self.x_min += delta_x
-            self.x_max += delta_x
 
             # Ensure limits stay within the valid frequency range
-            if self.x_min < 1:
-                self.x_min = 1
-                self.x_max = (self.x_max - self.x_min)
-            if self.x_max > 20000:
-                self.x_max = 20000
-                self.x_min = 20000 - (self.x_max - self.x_min)
+            if self.log_scale:
+                if self.x_min + delta_x > 125 and self.x_max + delta_x < 8000:
+                    self.x_min = self.x_min + delta_x
+                    self.x_max = self.x_max + delta_x
+            elif self.x_min + delta_x > 0 and self.x_max + delta_x < 20000:
+                self.x_min = self.x_min + delta_x
+                self.x_max = self.x_max + delta_x
 
             self.ax.set_xlim(self.x_min, self.x_max)
             self.draw()
@@ -121,10 +126,16 @@ class FFTPlotCanvas(FigureCanvas):
         new_x_max = mouse_x + (self.x_max - mouse_x) * scale_factor
 
         # Ensure limits stay within the valid frequency range
-        if new_x_min < 20:
-            new_x_min = 20
-        if new_x_max > 20000:
-            new_x_max = 20000
+        if self.log_scale:
+            if new_x_min < 125:
+                new_x_min = 125
+            if new_x_max > 8000:
+                new_x_max = 8000
+        else:
+            if new_x_min < 0:
+                new_x_min = 0
+            if new_x_max > 20000:
+                new_x_max = 20000
 
         # Apply new limits
         self.x_min, self.x_max = new_x_min, new_x_max

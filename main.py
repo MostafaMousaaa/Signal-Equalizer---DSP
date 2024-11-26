@@ -80,7 +80,7 @@ class MainApp(QtWidgets.QMainWindow, Ui_MainWindow):
         self.comboBox_modeSelection.currentIndexChanged.connect(self.changeMode)
         self.timer.timeout.connect(self.updateSignalView_timeDomain)
         self.pushButton_uploadButton.clicked.connect(self.uploadSignal)
-        self.pushButton_uploadButton.clicked.connect(self.load_audio)
+        #self.pushButton_uploadButton.clicked.connect(self.load_audio)
         self.comboBox_frequencyScale.activated.connect(self.set_log_scale)
         self.speedSlider.valueChanged.connect(self.setSpeed)
    

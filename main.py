@@ -8,6 +8,8 @@ from PyQt5 import QtWidgets
 from PyQt5.QtWidgets import QFileDialog
 from UITEAM15 import Ui_MainWindow  # Import the Ui_MainWindow class
 import soundfile as sf
+# Add to both files
+import os
 
 class MainApp(QtWidgets.QMainWindow, Ui_MainWindow):
     def __init__(self):
@@ -106,12 +108,12 @@ class MainApp(QtWidgets.QMainWindow, Ui_MainWindow):
 
 
     def uploadSignal(self):
-        """Upload and plot the signal."""
-        file_browser = FileBrowser()
-        self.signal, self.sampling_rate = file_browser.browse_file(mode= 'music')   # preparing original signal
-        self.freq_components, self.frequencies, self.magnitudes, self.phase_angles = self.computeFourierTransform()  # preparing modified signal properties by computing fft for only one time when browsing
-        self.plotSignal()    # plots original signal and calls plotting modified signal
-        
+            """Upload and plot the signal."""
+            current_dir = os.path.dirname(os.path.abspath(__file__))  # Get current directory
+            file_browser = FileBrowser(initial_dir=current_dir)  # Pass current dir to FileBrowser
+            self.signal, self.sampling_rate = file_browser.browse_file(mode='music')   
+            self.freq_components, self.frequencies, self.magnitudes, self.phase_angles = self.computeFourierTransform()
+            self.plotSignal()
 
       
     def plotSignal(self):  

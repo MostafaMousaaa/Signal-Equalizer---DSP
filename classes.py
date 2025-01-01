@@ -3,20 +3,21 @@ import matplotlib.pyplot as plt
 from scipy.signal import spectrogram
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QFileDialog
 import librosa
+import os
 
 class FileBrowser:
-    global player
-    def __init__(self, parent = None):
-        self.parent = parent
-        # Define the instruments and volumes
-        
-      
-    def browse_file(self, mode):
-        if mode == 'music':
-            file_path, _ = QFileDialog.getOpenFileName(directory= "D:/Signal-Equalizer-DSP", filter= " wav files (*.wav)")
-            signal, sampling_rate= librosa.load(file_path, sr= None)
-            print(f"Signal path: {file_path}")
-            return signal, sampling_rate
+    def __init__(self, initial_dir=None):
+        self.initial_dir = initial_dir or os.getcwd()
+    
+    def browse_file(self, mode='music'):
+        filename = QFileDialog.getOpenFileName(
+            directory=self.initial_dir,
+            filter="WAV files (*.wav);;All files (*.*)"
+        )
+        file_path = filename[0]
+        signal, sampling_rate = librosa.load(file_path, sr=None)
+        print(f"Signal path: {file_path}")
+        return signal, sampling_rate
 
 class Spectrogram(QWidget):
     def __init__(self, signal=None):

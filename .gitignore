@@ -7,5 +7,4 @@ ecg_data(time, amplitude).csv
 VOWEL_A.wav
 VOWELS.wav
 test_vowel_removal.py
-*.wav
 detect_formants.py
